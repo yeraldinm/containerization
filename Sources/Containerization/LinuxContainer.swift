@@ -410,6 +410,11 @@ extension LinuxContainer {
         get { config.spec.process!.rlimits }
         set { config.spec.process!.rlimits = newValue }
     }
+
+    /// PID of the container's init process, or -1 if not running.
+    public var pid: Int32 {
+        (try? state.startedState("pid").process.pid) ?? -1
+    }
 }
 
 extension LinuxContainer {

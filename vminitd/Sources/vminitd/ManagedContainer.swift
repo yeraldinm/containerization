@@ -106,6 +106,17 @@ extension ManagedContainer {
         try self.initProcess.start()
     }
 
+    func startProcess(id: String) async throws -> Int32 {
+        let proc: ManagedProcess
+        if id == self.id {
+            proc = self.initProcess
+        } else {
+            try ensureExecExists(id)
+            proc = self._execs[id]!
+        }
+        return try await ProcessSupervisor.default.start(process: proc)
+    }
+
     func wait() async -> Int32 {
         await self.initProcess.wait()
     }
