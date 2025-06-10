@@ -30,16 +30,21 @@ public class ImageStoreTests: ContainsAuth {
     let store: ImageStore
     let dir: URL
 
-    public init() {
+    public init() throws {
         let dir = FileManager.default.uniqueTemporaryDirectory(create: true)
-        let cs = try! LocalContentStore(path: dir)
-        let store = try! ImageStore(path: dir, contentStore: cs)
-        self.dir = dir
-        self.store = store
+        do {
+            let cs = try LocalContentStore(path: dir)
+            let store = try ImageStore(path: dir, contentStore: cs)
+            self.dir = dir
+            self.store = store
+        } catch {
+            try? FileManager.default.removeItem(at: dir)
+            throw error
+        }
     }
 
     deinit {
-        try! FileManager.default.removeItem(at: self.dir)
+        try? FileManager.default.removeItem(at: self.dir)
     }
 
     @Test func testImageStoreOperation() async throws {

@@ -179,9 +179,10 @@ extension Vminitd: VirtualMachineAgent {
             return resp.exitCode
         } catch {
             if let err = error as? GRPCError.RPCTimedOut {
+                let timeoutDescription = timeoutInSeconds.map { "\($0) seconds" } ?? "the allotted time"
                 throw ContainerizationError(
                     .timeout,
-                    message: "failed to wait for process exit within timeout of \(timeoutInSeconds!) seconds",
+                    message: "failed to wait for process exit within \(timeoutDescription)",
                     cause: err
                 )
             }

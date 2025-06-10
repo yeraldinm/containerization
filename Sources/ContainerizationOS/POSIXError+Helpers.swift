@@ -19,9 +19,7 @@ import Foundation
 
 extension POSIXError {
     public static func fromErrno() -> POSIXError {
-        guard let errCode = POSIXErrorCode(rawValue: errno) else {
-            fatalError("failed to convert errno to POSIXErrorCode")
-        }
+        let errCode = POSIXErrorCode(rawValue: errno) ?? .EPERM
         return POSIXError(errCode)
     }
 }

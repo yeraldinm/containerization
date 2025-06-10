@@ -51,10 +51,17 @@ static void child_handler(const int sync_pipes[2], const char *executable,
   int i = 0;
   int err = 0;
   int fd_index = 0;
-  int fd_table[file_handle_count];
+  int *fd_table = NULL;
   struct rlimit limits = {0};
   int syncfd = sync_pipes[1];
   struct sigaction action = {0};
+
+  if (file_handle_count > 0) {
+    fd_table = calloc(file_handle_count, sizeof(int));
+    if (!fd_table) {
+      goto fail;
+    }
+  }
 
   // closing our parent's side of the pipe
   if (close(sync_pipes[0]) < 0) {
@@ -229,6 +236,9 @@ static void child_handler(const int sync_pipes[2], const char *executable,
 
   execve(executable, args, environment);
 fail:
+  if (fd_table) {
+    free(fd_table);
+  }
   err = errno;
   if (err) {
     // send our error to the parent

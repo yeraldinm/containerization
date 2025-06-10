@@ -288,6 +288,8 @@ extension SocketRelay {
             )
         }
 
+        var freedBuffers = false
+
         connSource.setCancelHandler {
             if !connSource.isCancelled {
                 connSource.cancel()
@@ -296,6 +298,11 @@ extension SocketRelay {
                 vsockConnectionSource.cancel()
             }
             try? hostConn.close()
+            if !freedBuffers {
+                buf1.deallocate()
+                buf2.deallocate()
+                freedBuffers = true
+            }
         }
 
         vsockConnectionSource.setCancelHandler {
@@ -306,6 +313,11 @@ extension SocketRelay {
                 connSource.cancel()
             }
             close(guestFd)
+            if !freedBuffers {
+                buf1.deallocate()
+                buf2.deallocate()
+                freedBuffers = true
+            }
         }
 
         connSource.activate()

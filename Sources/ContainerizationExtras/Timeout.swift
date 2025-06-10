@@ -37,7 +37,8 @@ public struct Timeout {
             }
 
             guard let result = try await group.next() else {
-                fatalError()
+                group.cancelAll()
+                throw CancellationError()
             }
 
             group.cancelAll()

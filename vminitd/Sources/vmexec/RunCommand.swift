@@ -229,8 +229,18 @@ struct RunCommand: ParsableCommand {
         guard fchdir(newRoot) == 0 else {
             throw App.Errno(stage: "fchdir(newroot)")
         }
-        guard syscall2(Int(SYS_pivot_root), toCString("."), toCString(".")) == 0 else {
-            throw App.Errno(stage: "pivot_root()")
+        try ".".withCString { newPtr in
+            try ".".withCString { oldPtr in
+                guard
+                    syscall2(
+                        Int(SYS_pivot_root),
+                        UnsafeMutableRawPointer(mutating: newPtr),
+                        UnsafeMutableRawPointer(mutating: oldPtr)
+                    ) == 0
+                else {
+                    throw App.Errno(stage: "pivot_root()")
+                }
+            }
         }
         // change cwd to the old root
         guard fchdir(oldRoot) == 0 else {
@@ -251,10 +261,4 @@ struct RunCommand: ParsableCommand {
         }
     }
 
-    private func toCString(_ str: String) -> UnsafeMutablePointer<CChar>? {
-        let cString = str.utf8CString
-        let cStringCopy = UnsafeMutableBufferPointer<CChar>.allocate(capacity: cString.count)
-        _ = cStringCopy.initialize(from: cString)
-        return UnsafeMutablePointer(cStringCopy.baseAddress)
-    }
 }

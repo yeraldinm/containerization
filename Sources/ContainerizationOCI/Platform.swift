@@ -36,7 +36,7 @@ public struct Platform: Sendable, Equatable {
         case "x86_64":
             return .init(arch: "amd64", os: "linux")
         default:
-            fatalError("unsupported arch \(arch)")
+            return .init(arch: arch, os: "linux")
         }
     }
 

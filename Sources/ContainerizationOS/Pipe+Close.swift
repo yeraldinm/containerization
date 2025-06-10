@@ -35,10 +35,10 @@ extension Pipe {
     /// Ensure that both sides of the pipe are set with O_CLOEXEC.
     public func setCloexec() throws {
         if fcntl(self.fileHandleForWriting.fileDescriptor, F_SETFD, FD_CLOEXEC) == -1 {
-            throw POSIXError(.init(rawValue: errno)!)
+            throw POSIXError.fromErrno()
         }
         if fcntl(self.fileHandleForReading.fileDescriptor, F_SETFD, FD_CLOEXEC) == -1 {
-            throw POSIXError(.init(rawValue: errno)!)
+            throw POSIXError.fromErrno()
         }
     }
 }
