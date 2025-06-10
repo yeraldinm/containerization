@@ -33,6 +33,23 @@ public struct InitImage: Sendable {
 }
 
 extension InitImage {
+    fileprivate static func decompressGzip(source: URL, destination: URL) throws {
+        FileManager.default.createFile(atPath: destination.path, contents: nil)
+        let out = try FileHandle(forWritingTo: destination)
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/gzip")
+        process.arguments = ["-dc", source.path]
+        process.standardOutput = out
+        try process.run()
+        process.waitUntilExit()
+        try out.close()
+        guard process.terminationStatus == 0 else {
+            throw ContainerizationError(.internalError, message: "failed to decompress \(source.path)")
+        }
+    }
+}
+
+extension InitImage {
     /// Unpack the initial filesystem for the desired platform at a given path.
     public func initBlock(at: URL, for platform: SystemPlatform) async throws -> Mount {
         var fs = try await image.unpack(for: platform.ociPlatform(), at: at, blockSizeInBytes: 512.mib())
@@ -53,10 +70,11 @@ extension InitImage {
             var result = try writer.create(from: rootfs)
             let layerDescriptor = Descriptor(mediaType: ContainerizationOCI.MediaTypes.imageLayerGzip, digest: result.digest.digestString, size: result.size)
 
-            // TODO: compute and fill in the correct diffID for the above layer
-            // We currently put in the sha of the fully compressed layer, this needs to be replaced with
-            // the sha of the uncompressed layer.
-            let rootfsConfig = ContainerizationOCI.Rootfs(type: "layers", diffIDs: [result.digest.digestString])
+            let uncompressedURL = FileManager.default.uniqueTemporaryDirectory().appending(path: "layer.tar")
+            defer { try? FileManager.default.removeItem(at: uncompressedURL) }
+            try Self.decompressGzip(source: rootfs, destination: uncompressedURL)
+            let diffDigest = try LocalContent(path: uncompressedURL).digest()
+            let rootfsConfig = ContainerizationOCI.Rootfs(type: "layers", diffIDs: [diffDigest.digestString])
             let runtimeConfig = ContainerizationOCI.ImageConfig(labels: labels)
             let imageConfig = ContainerizationOCI.Image(architecture: platform.architecture, os: platform.os, config: runtimeConfig, rootfs: rootfsConfig)
             result = try writer.create(from: imageConfig)
