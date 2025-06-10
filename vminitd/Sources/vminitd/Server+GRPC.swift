@@ -516,20 +516,8 @@ extension Initd: Com_Apple_Containerization_Sandbox_V3_SandboxContextAsyncProvid
 
         do {
             let ctr = try await self.state.get(container: request.containerID)
-
-            // FIXME: This should just happen inside of ManagedContainer.
-            let pid: Int32
-            if request.id == request.containerID {
-                let process = ctr.initProcess
-                pid = try await ProcessSupervisor.default.start(process: process)
-            } else {
-                let process = try await ctr.getExec(id: request.id)
-                pid = try await ProcessSupervisor.default.start(process: process)
-            }
-
-            return .with {
-                $0.pid = pid
-            }
+            let pid = try await ctr.startProcess(id: request.id)
+            return .with { $0.pid = pid }
         } catch {
             log.error(
                 "startProcess",

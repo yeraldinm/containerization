@@ -35,6 +35,9 @@ extension IntegrationSuite {
 
         try await container.create()
         try await container.start()
+        guard container.pid > 0 else {
+            throw IntegrationError.assert(msg: "invalid pid \(container.pid)")
+        }
 
         let status = try await container.wait()
         try await container.stop()
@@ -53,6 +56,9 @@ extension IntegrationSuite {
 
         try await container.create()
         try await container.start()
+        guard container.pid > 0 else {
+            throw IntegrationError.assert(msg: "invalid pid \(container.pid)")
+        }
 
         let status = try await container.wait()
         try await container.stop()
@@ -85,6 +91,12 @@ extension IntegrationSuite {
         do {
             try await container.create()
             try await container.start()
+            guard container.pid > 0 else {
+                throw IntegrationError.assert(msg: "invalid pid \(container.pid)")
+            }
+            guard container.pid > 0 else {
+                throw IntegrationError.assert(msg: "invalid pid \(container.pid)")
+            }
 
             let status = try await container.wait()
             try await container.stop()
@@ -117,6 +129,9 @@ extension IntegrationSuite {
         do {
             try await container.create()
             try await container.start()
+            guard container.pid > 0 else {
+                throw IntegrationError.assert(msg: "invalid pid \(container.pid)")
+            }
 
             let execConfig = ContainerizationOCI.Process(
                 args: ["/bin/true"],
@@ -132,6 +147,9 @@ extension IntegrationSuite {
 
                     group.addTask {
                         try await exec.start()
+                        guard exec.pid > 0 else {
+                            throw IntegrationError.assert(msg: "invalid pid \(exec.pid)")
+                        }
                         let status = try await exec.wait()
                         if status != 0 {
                             throw IntegrationError.assert(msg: "process status \(status) != 0")
@@ -190,6 +208,9 @@ extension IntegrationSuite {
                             stdout: buffer,
                         )
                         try await exec.start()
+                        guard exec.pid > 0 else {
+                            throw IntegrationError.assert(msg: "invalid pid \(exec.pid)")
+                        }
 
                         let status = try await exec.wait()
                         if status != 0 {
@@ -237,6 +258,9 @@ extension IntegrationSuite {
 
         try await container.create()
         try await container.start()
+        guard container.pid > 0 else {
+            throw IntegrationError.assert(msg: "invalid pid \(container.pid)")
+        }
 
         let status = try await container.wait()
         try await container.stop()
@@ -269,6 +293,9 @@ extension IntegrationSuite {
 
         try await container.create()
         try await container.start()
+        guard container.pid > 0 else {
+            throw IntegrationError.assert(msg: "invalid pid \(container.pid)")
+        }
 
         let status = try await container.wait()
         try await container.stop()
