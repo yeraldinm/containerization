@@ -67,4 +67,22 @@ public struct MediaTypes: Codable, Sendable {
 
     /// The media type used for in-toto attestations blobs.
     public static let intototAttestationBlob = "application/vnd.in-toto+json"
+
+    /// The media type used for layers with distribution restrictions.
+    public static let imageLayerNonDistributable = "application/vnd.oci.image.layer.nondistributable.v1.tar"
+
+    /// The media type used for gzipped layers with distribution restrictions.
+    public static let imageLayerNonDistributableGzip = "application/vnd.oci.image.layer.nondistributable.v1.tar+gzip"
+
+    /// The media type used for zstd compressed layers with distribution restrictions.
+    public static let imageLayerNonDistributableZstd = "application/vnd.oci.image.layer.nondistributable.v1.tar+zstd"
+
+    /// The Docker media type used for foreign layers referenced by a manifest.
+    public static let dockerForeignLayer = "application/vnd.docker.image.rootfs.foreign.diff.tar.gzip"
+
+    /// The media type used for ORAS artifact manifests.
+    public static let orasArtifactManifest = "application/vnd.cncf.oras.artifact.manifest.v1+json"
+
+    /// The media type used for Notary signatures.
+    public static let notarySignature = "application/vnd.cncf.notary.signature"
 }

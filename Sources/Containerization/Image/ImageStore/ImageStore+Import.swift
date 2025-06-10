@@ -110,8 +110,17 @@ extension ImageStore {
                     let manifest: Manifest = try await self.getManifestContent(descriptor: desc)
                     out.append(manifest.config)
                     out.append(contentsOf: manifest.layers)
+                case MediaTypes.orasArtifactManifest:
+                    throw ContainerizationError(.unsupported, message: "Artifact manifest not supported")
+                case MediaTypes.notarySignature:
+                    throw ContainerizationError(.unsupported, message: "Signature type not supported")
+                case MediaTypes.imageLayerNonDistributable,
+                    MediaTypes.imageLayerNonDistributableGzip,
+                    MediaTypes.imageLayerNonDistributableZstd,
+                    MediaTypes.dockerForeignLayer,
+                    MediaTypes.intototAttestationBlob:
+                    continue
                 default:
-                    // TODO: Explicitly handle other content types
                     continue
                 }
             }
@@ -202,6 +211,10 @@ extension ImageStore {
                 root.platform = platform
                 let index = ContainerizationOCI.Index(schemaVersion: 2, manifests: [root])
                 return index
+            case MediaTypes.orasArtifactManifest:
+                throw ContainerizationError(.unsupported, message: "Cannot import artifact manifest \(root.digest)")
+            case MediaTypes.notarySignature:
+                throw ContainerizationError(.unsupported, message: "Cannot import signature \(root.digest)")
             default:
                 throw ContainerizationError(.internalError, message: "Failed to create index for descriptor \(root.digest), media type \(root.mediaType)")
             }
@@ -224,6 +237,8 @@ extension ImageStore {
                             arch: config.architecture, os: config.os, osFeatures: config.osFeatures, variant: config.variant
                         )
                         supportedPlatforms.append(p)
+                    case MediaTypes.orasArtifactManifest, MediaTypes.notarySignature:
+                        continue
                     default:
                         continue
                     }
