@@ -43,6 +43,36 @@ private let _kill = Glibc.kill
 private let _sync = Glibc.sync
 #endif
 
+#if os(Linux)
+private let mountFlags: [String: (clear: Bool, flag: Int32)] = [
+    "async": (true, MS_SYNCHRONOUS),
+    "atime": (true, MS_NOATIME),
+    "bind": (false, MS_BIND),
+    "defaults": (false, 0),
+    "dev": (true, MS_NODEV),
+    "diratime": (true, MS_NODIRATIME),
+    "dirsync": (false, MS_DIRSYNC),
+    "exec": (true, MS_NOEXEC),
+    "mand": (false, MS_MANDLOCK),
+    "noatime": (false, MS_NOATIME),
+    "nodev": (false, MS_NODEV),
+    "nodiratime": (false, MS_NODIRATIME),
+    "noexec": (false, MS_NOEXEC),
+    "nomand": (true, MS_MANDLOCK),
+    "norelatime": (true, MS_RELATIME),
+    "nostrictatime": (true, MS_STRICTATIME),
+    "nosuid": (false, MS_NOSUID),
+    "rbind": (false, MS_BIND | MS_REC),
+    "relatime": (false, MS_RELATIME),
+    "remount": (false, MS_REMOUNT),
+    "ro": (false, MS_RDONLY),
+    "rw": (true, MS_RDONLY),
+    "strictatime": (false, MS_STRICTATIME),
+    "suid": (true, MS_NOSUID),
+    "sync": (false, MS_SYNCHRONOUS),
+]
+#endif
+
 extension Initd: Com_Apple_Containerization_Sandbox_V3_SandboxContextAsyncProvider {
     func setTime(
         request: Com_Apple_Containerization_Sandbox_V3_SetTimeRequest,
@@ -258,7 +288,70 @@ extension Initd: Com_Apple_Containerization_Sandbox_V3_SandboxContextAsyncProvid
             ])
 
         do {
-            // FIXME: Handle single file mounts.
+            var isDirectory: ObjCBool = false
+            let fm = FileManager.default
+            if fm.fileExists(atPath: request.source, isDirectory: &isDirectory), !isDirectory.boolValue {
+                let destURL = URL(fileURLWithPath: request.destination)
+                let parent = destURL.deletingLastPathComponent().path
+                try fm.createDirectory(atPath: parent, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o755])
+                if !fm.fileExists(atPath: destURL.path) {
+                    fm.createFile(atPath: destURL.path, contents: nil)
+                }
+
+                #if os(Linux)
+                var options = request.options
+                if !options.contains("bind") {
+                    options.append("bind")
+                }
+
+                var flags: Int32 = 0
+                var data: [String] = []
+                for opt in options {
+                    if let entry = mountFlags[opt], entry.flag != 0 {
+                        if entry.clear {
+                            flags &= ~entry.flag
+                        } else {
+                            flags |= entry.flag
+                        }
+                    } else {
+                        data.append(opt)
+                    }
+                }
+
+                let dataString = data.joined(separator: ",")
+                let pageSize = sysconf(_SC_PAGESIZE)
+                if dataString.count > pageSize {
+                    throw GRPCStatus(code: .invalidArgument, message: "mount data string too large")
+                }
+
+                let propagationTypes: Int32 = MS_SHARED | MS_PRIVATE | MS_SLAVE | MS_UNBINDABLE
+                let originalFlags = flags & ~propagationTypes
+
+                if originalFlags & MS_REMOUNT == 0 || !dataString.isEmpty {
+                    guard _mount(request.source, destURL.path, "", UInt(originalFlags), dataString) == 0 else {
+                        throw POSIXError.fromErrno()
+                    }
+                }
+
+                if flags & propagationTypes != 0 {
+                    let pflags = propagationTypes | MS_REC | MS_SILENT
+                    guard _mount("", destURL.path, "", UInt(flags & pflags), "") == 0 else {
+                        throw POSIXError.fromErrno()
+                    }
+                }
+
+                let bindReadOnlyFlags = MS_BIND | MS_RDONLY
+                if originalFlags & bindReadOnlyFlags == bindReadOnlyFlags {
+                    guard _mount("", destURL.path, "", UInt(originalFlags | MS_REMOUNT), "") == 0 else {
+                        throw POSIXError.fromErrno()
+                    }
+                }
+                return .init()
+                #else
+                fatalError("mount not supported on platform")
+                #endif
+            }
+
             let mnt = ContainerizationOS.Mount(
                 type: request.type,
                 source: request.source,
