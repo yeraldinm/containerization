@@ -24,6 +24,7 @@ Containerization executes each Linux container inside of its own lightweight vir
 [vminitd](/vminitd) is a small init system, which is a subproject within Containerization.
 `vminitd` is spawned as the initial process inside of the virtual machine and provides a GRPC API over vsock.
 The API allows the runtime environment to be configured and containerized processes to be launched.
+It can bind individual host files or directories into the guest filesystem.
 `vminitd` provides I/O, signals, and events to the calling process when a process is ran.
 
 ## Requirements
@@ -47,6 +48,7 @@ For examples of how to use some of the libraries surface, the cctl executable is
 2. [Logging in to container registries](./Sources/cctl/LoginCommand.swift)
 3. [Creating root filesystem blocks](./Sources/cctl/RootfsCommand.swift)
 4. [Running simple Linux containers](./Sources/cctl/RunCommand.swift)
+5. Binding single files into containers via `vminitd`'s mount API
 
 ## Linux kernel
 
