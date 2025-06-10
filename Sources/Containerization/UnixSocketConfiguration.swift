@@ -15,17 +15,17 @@
 // limitations under the License.
 //===----------------------------------------------------------------------===//
 
+import Crypto
 import Foundation
 import SystemPackage
 
 /// Represents a UnixSocket that can be shared into or out of a container/guest.
-public struct UnixSocketConfiguration: Sendable {
-    // TODO: Realistically, we can just hash this struct and use it as the "id".
+public struct UnixSocketConfiguration: Sendable, Hashable {
     package var id: String {
-        _id
+        let toHash = "src:\(source.path)|dst:\(destination.path)|perm:\(permissions?.rawValue ?? 0)|dir:\(direction)"
+        let data = Data(toHash.utf8)
+        return String(SHA256.hash(data: data).encoded.prefix(36))
     }
-
-    private let _id = UUID().uuidString
 
     /// The path to the socket you'd like relayed. For .into
     /// direction this should be the path on the host to a unix socket.
