@@ -343,8 +343,10 @@ extension LinuxProcess {
             containerID: self.owningContainer
         )
 
-        // FIXME: Add in IO drain waiting here. We can wait for 2-3 seconds or
-        // so and then just continue on.
+        // Give any pending stdout/stderr data time to be delivered. We poll the
+        // file handles for up to two seconds so that leftover output can be
+        // consumed before we close them.
+        await self.drainIO(timeoutSeconds: 2)
 
         // Now free up stdio handles.
         try self.state.withLock {
@@ -354,5 +356,74 @@ extension LinuxProcess {
 
         // Finally, close our agent conn.
         try await self.agent.close()
+    }
+
+    /// Drain any remaining stdout/stderr data until no more is available or the
+    /// timeout has been reached.
+private func drainIO(timeoutSeconds: Int) async {
+        let deadline = DispatchTime.now().uptimeNanoseconds + UInt64(timeoutSeconds) * 1_000_000_000
+
+        while DispatchTime.now().uptimeNanoseconds < deadline {
+            let hasData = self.state.withLock { state -> Bool in
+                var consumed = false
+                if let stdout = state.stdio.stdout, let outWriter = self.ioSetup.stdout?.writer {
+                    let data = stdout.availableData
+                    if !data.isEmpty {
+                        try? outWriter.write(data)
+                        consumed = true
+                    }
+                }
+                if let stderr = state.stdio.stderr, let errWriter = self.ioSetup.stderr?.writer {
+                    let data = stderr.availableData
+                    if !data.isEmpty {
+                        try? errWriter.write(data)
+                        consumed = true
+                    }
+                }
+                return consumed
+            }
+
+            if !hasData {
+                break
+            }
+
+            try? await Task.sleep(nanoseconds: 50_000_000)
+        }
+    }
+
+    package func testSetStdioHandles(stdout: FileHandle?, stderr: FileHandle?) {
+        self.state.withLock { state in
+            state.stdio = StdioHandles(stdin: nil, stdout: stdout, stderr: stderr)
+
+            if let stdout = stdout, let stdoutSetup = self.ioSetup.stdout {
+                stdout.readabilityHandler = { handle in
+                    do {
+                        let data = handle.availableData
+                        if data.isEmpty {
+                            handle.readabilityHandler = nil
+                            return
+                        }
+                        try stdoutSetup.writer.write(data)
+                    } catch {
+                        self.logger?.error("failed to write to stdout: \(error)")
+                    }
+                }
+            }
+
+            if let stderr = stderr, let stderrSetup = self.ioSetup.stderr {
+                stderr.readabilityHandler = { handle in
+                    do {
+                        let data = handle.availableData
+                        if data.isEmpty {
+                            handle.readabilityHandler = nil
+                            return
+                        }
+                        try stderrSetup.writer.write(data)
+                    } catch {
+                        self.logger?.error("failed to write to stderr: \(error)")
+                    }
+                }
+            }
+        }
     }
 }
