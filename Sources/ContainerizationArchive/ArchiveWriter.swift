@@ -102,8 +102,8 @@ public final class ArchiveWriter {
 extension ArchiveWriter {
     fileprivate func open() throws {
         guard let underlying = underlying else { throw ArchiveError.noUnderlyingArchive }
-        // TODO: to be or not to be retained, that is the question
-        let pointerToSelf = Unmanaged.passUnretained(self).toOpaque()
+        // balance the Unmanaged reference by releasing it in the free callback
+        let pointerToSelf = Unmanaged.passRetained(self).toOpaque()
 
         let res = archive_write_open2(
             underlying,
@@ -168,13 +168,13 @@ extension ArchiveWriter {
                     guard let pointerToSelf = pointerToSelf else {
                         throw ArchiveError.noArchiveInCallback
                     }
-                    let archive: ArchiveWriter = Unmanaged.fromOpaque(pointerToSelf).takeUnretainedValue()
+                    let unmanaged = Unmanaged<ArchiveWriter>.fromOpaque(pointerToSelf)
+                    let archive: ArchiveWriter = unmanaged.takeUnretainedValue()
                     guard let delegate = archive.delegate else {
                         throw ArchiveError.noDelegateConfigured
                     }
                     delegate.free(archive: archive)
-
-                    // TODO: should we balance the Unmanaged refcount here? Need to test for leaks.
+                    unmanaged.release()
                     return ARCHIVE_OK
                 } catch {
                     archive_set_error_wrapper(underlying, ARCHIVE_FATAL, "\(error)")

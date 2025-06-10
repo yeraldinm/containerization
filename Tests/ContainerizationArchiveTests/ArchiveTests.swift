@@ -177,6 +177,30 @@ struct ArchiveTests {
             #expect([UInt8](val) == [1, 2, 3])
         }
     }
+
+    @Test func memoryLeakOpenClose() throws {
+        let testDirectory = createTemporaryDirectory(baseName: "ArchiveTests.memoryLeak")!
+        let archiveURL = testDirectory.appendingPathComponent("test.tar.gz")
+        defer {
+            let fm = FileManager.default
+            try? fm.removeItem(at: testDirectory)
+        }
+
+        weak var weakWriter: ArchiveWriter?
+        for _ in 0..<50 {
+            autoreleasepool {
+                do {
+                    var writer: ArchiveWriter? = try ArchiveWriter(format: .pax, filter: .gzip, file: archiveURL)
+                    weakWriter = writer
+                    try writer?.finishEncoding()
+                    writer = nil
+                } catch {
+                    Issue.record("unexpected error \(error)")
+                }
+                #expect(weakWriter == nil)
+            }
+        }
+    }
 }
 
 private let surveyBundleBase64Encoded = """
