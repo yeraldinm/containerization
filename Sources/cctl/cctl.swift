@@ -40,14 +40,22 @@ struct Application: AsyncParsableCommand {
     }()
 
     private static let _contentStore: ContentStore = {
-        try! LocalContentStore(path: appRoot.appendingPathComponent("content"))
+        do {
+            return try LocalContentStore(path: appRoot.appendingPathComponent("content"))
+        } catch {
+            fatalError("failed to initialize content store: \(error)")
+        }
     }()
 
     private static let _imageStore: ImageStore = {
-        try! ImageStore(
-            path: appRoot,
-            contentStore: contentStore
-        )
+        do {
+            return try ImageStore(
+                path: appRoot,
+                contentStore: contentStore
+            )
+        } catch {
+            fatalError("failed to initialize image store: \(error)")
+        }
     }()
 
     static var imageStore: ImageStore {
